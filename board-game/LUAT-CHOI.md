@@ -186,3 +186,8 @@ Nếu hết **vòng 8** mà chưa ai thắng, tính điểm:
 - Kỵ binh có quá mạnh khi đối thủ dàn ít Bộ binh không? (Nếu có: xung phong vào cột trống trúng 4+ thay cho 3+.)
 - Trận có kết thúc trước vòng 4 đủ thường xuyên không? (Nếu không: tinh thần kiểm tra khi kết quả ≤ số quân mất **+1**.)
 - Thu nhập 3 điểm hành động có khiến người đi trước lợi quá không? (Nếu có: xoay người đi đầu mỗi vòng.)
+
+---
+
+## 9. Demo điện tử
+`board-game/demo-tran-danh.html` là bản mô phỏng phần trận đánh (mục 4) chạy ngay trên trình duyệt, không cần cài gì: mở file, chọn vai và địa hình, dàn quân rồi đánh với máy. Dùng nó để test cân bằng trước khi in bàn trận.

@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thiên Hạ Phân Tranh</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<style>
+/* Layout: war table. Enemy board on top, player board below, a thin "no man's land" rule between; log and controls in a side column that stacks under on phones. */
+:root{
+  --bg:#ece7dc;        /* sand-grey table felt */
+  --panel:#f7f3ea;
+  --ink:#1f2330;
+  --muted:#6b6f7c;
+  --line:#cfc8b8;
+  --p:#2d3f7a;         /* player: indigo */
+  --p-soft:#dde3f5;
+  --e:#9b2f2a;         /* enemy: lacquer red */
+  --e-soft:#f3dcd8;
+  --bronze:#8a6a2f;
+  --good:#2f7a4a; --warn:#b2731a; --bad:#a83232;
+  --display:"Playfair Display",Georgia,"Times New Roman",serif;
+  --body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#1a1b20; --panel:#24262e; --ink:#ece7dc; --muted:#a39e92; --line:#3a3d48;
+  --p:#8ea1e6; --p-soft:#2a3354; --e:#e0786f; --e-soft:#4a2a28; --bronze:#c9a564;
+  --good:#6cc08a; --warn:#e0a34a; --bad:#e46a6a; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#1a1b20; --panel:#24262e; --ink:#ece7dc; --muted:#a39e92; --line:#3a3d48;
+  --p:#8ea1e6; --p-soft:#2a3354; --e:#e0786f; --e-soft:#4a2a28; --bronze:#c9a564;
+  --good:#6cc08a; --warn:#e0a34a; --bad:#e46a6a; color-scheme:dark }
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1.5;
+  padding-block:18px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button{font:inherit;cursor:pointer}
+button:focus-visible,select:focus-visible{outline:2px solid var(--bronze);outline-offset:2px}
+h1{font-family:var(--display);font-size:clamp(26px,4vw,38px);margin:0;line-height:1.1;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;font-size:14px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;max-width:1180px;margin:0 auto 16px}
+.eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--bronze);font-weight:600}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;min-width:0}
+.field{padding:14px}
+.sidebar{display:flex;flex-direction:column;gap:14px;min-width:0}
+
+/* setup */
+.setup{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;padding:14px}
+.setup label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.setup select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit}
+.terrain-note{grid-column:1/-1;font-size:13px;color:var(--muted);border-top:1px dashed var(--line);padding-top:10px}
+
+/* boards */
+.boardlabel{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;margin:4px 0 6px}
+.boardlabel b{font-family:var(--display);font-size:17px}
+.side-e .boardlabel b{color:var(--e)} .side-p .boardlabel b{color:var(--p)}
+.board{display:grid;grid-template-columns:72px repeat(3,minmax(0,1fr));gap:6px}
+.rowname{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;align-self:center}
+.lanehead{text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.cell{min-height:58px;border:1px solid var(--line);border-radius:4px;background:var(--bg);display:flex;flex-wrap:wrap;gap:4px;padding:5px;align-content:flex-start;position:relative}
+.cell.can{border-style:dashed;border-color:var(--bronze);cursor:pointer}
+.cell.can:hover{background:var(--p-soft)}
+.cell.flank::after{content:"sườn hở";position:absolute;right:5px;bottom:3px;font-size:10px;color:var(--bad);letter-spacing:.04em}
+.tok{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;font-size:14px;font-weight:600;border:2px solid transparent;user-select:none}
+.tok.p{background:var(--p-soft);color:var(--p);border-color:var(--p)}
+.tok.e{background:var(--e-soft);color:var(--e);border-color:var(--e)}
+.tok.G{box-shadow:0 0 0 2px var(--bronze) inset}
+.cell .tok.p{cursor:pointer}
+.nomans{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.nomans::before,.nomans::after{content:"";flex:1;border-top:1px solid var(--line)}
+
+/* reserve + buttons */
+.reserve{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.rbtn{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--ink)}
+.rbtn.sel{border-color:var(--p);background:var(--p-soft)}
+.rbtn[disabled]{opacity:.45;cursor:default}
+.rbtn small{color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.btn{padding:9px 14px;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-weight:500}
+.btn.primary{background:var(--p);color:#fff;border-color:var(--p)}
+.btn.primary:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:transparent}
+
+/* status */
+.status{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{min-width:0}
+.stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stat .v{font-family:var(--display);font-size:22px;font-variant-numeric:tabular-nums}
+.stat.e .v{color:var(--e)} .stat.p .v{color:var(--p)}
+.phasebar{grid-column:1/-1;display:flex;gap:4px;flex-wrap:wrap}
+.ph{font-size:11px;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.ph.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.ph.done{opacity:.5}
+
+/* cards */
+.hand{padding:12px 14px}
+.hand h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.cards{display:flex;flex-direction:column;gap:6px}
+.card{display:flex;justify-content:space-between;gap:8px;align-items:center;border:1px solid var(--line);border-left:3px solid var(--bronze);border-radius:4px;padding:8px 10px;background:var(--bg);text-align:left;color:var(--ink);width:100%}
+.card.pick:hover{background:var(--p-soft)}
+.card.used{opacity:.4}
+.card b{display:block;font-size:14px}
+.card span{font-size:12px;color:var(--muted)}
+.card.na{opacity:.5;cursor:default}
+
+/* log */
+.log{padding:12px 14px;max-height:420px;overflow:auto;font-size:13px}
+.log h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.log .r{margin:10px 0 4px;font-family:var(--display);font-size:15px;border-bottom:1px solid var(--line);padding-bottom:2px}
+.log .h{font-weight:600;margin-top:6px;color:var(--bronze);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.log .l{margin:1px 0;padding-left:8px;border-left:2px solid transparent}
+.log .l.p{border-color:var(--p)} .log .l.e{border-color:var(--e)}
+.log .l.big{font-weight:600}
+.dice{font-variant-numeric:tabular-nums;color:var(--muted)}
+.result{padding:14px;border-left:4px solid var(--bronze)}
+.result b{font-family:var(--display);font-size:20px;display:block;margin-bottom:4px}
+.rules{font-size:13px;color:var(--muted);padding:12px 14px}
+.rules summary{cursor:pointer;color:var(--ink);font-weight:500}
+.rules ul{padding-left:18px;margin:8px 0 0}
+@media (prefers-reduced-motion:no-preference){.tok{transition:transform .15s}.cell .tok.p:hover{transform:scale(1.12)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">Thiên Hạ Phân Tranh · demo trận đánh</div>
+    <h1>Bàn trận 3 cột × 2 hàng</h1>
+    <p class="sub">Dàn quân, rồi đánh theo 5 pha như luật mục 4. Bạn cầm quân xanh, máy cầm quân đỏ.</p>
+  </div>
+  <div class="actions" style="margin:0"><button class="btn ghost" id="btnReset">Trận mới</button></div>
+</header>
+
+<div class="wrap">
+  <main class="panel">
+    <div class="setup" id="setup">
+      <div><label for="selRole">Vai của bạn</label>
+        <select id="selRole"><option value="att">Bên tấn công</option><option value="def">Bên phòng thủ</option></select></div>
+      <div><label for="selTerrain">Địa hình tỉnh</label>
+        <select id="selTerrain">
+          <option value="plain">Đồng bằng</option><option value="forest">Rừng</option>
+          <option value="hill">Đồi</option><option value="river">Sông</option><option value="city">Thành</option>
+        </select></div>
+      <div><label for="selArmy">Quân của mỗi bên</label>
+        <select id="selArmy">
+          <option value="std">Chuẩn: 6■ 4▲ 3● 1★ (14)</option>
+          <option value="inf">Bộ binh nặng: 9■ 3▲ 1● 1★</option>
+          <option value="cav">Kỵ binh: 4■ 3▲ 5● 1★</option>
+          <option value="arc">Cung thủ: 5■ 6▲ 2● 1★</option>
+        </select></div>
+      <div class="terrain-note" id="terrainNote"></div>
+    </div>
+
+    <div class="field">
+      <section class="side-e">
+        <div class="boardlabel"><b id="eName">Quân đỏ (máy)</b><span id="eRole" class="sub"></span></div>
+        <div class="board" id="boardE"></div>
+      </section>
+      <div class="nomans">chiến tuyến</div>
+      <section class="side-p">
+        <div class="boardlabel"><b id="pName">Quân xanh (bạn)</b><span id="pRole" class="sub"></span></div>
+        <div class="board" id="boardP"></div>
+      </section>
+      <div class="reserve" id="reserve"></div>
+      <div class="actions" id="actions"></div>
+    </div>
+  </main>
+
+  <aside class="sidebar">
+    <div class="panel status" id="status"></div>
+    <div class="panel hand" id="hand"></div>
+    <div class="panel log" id="log"><h3>Nhật ký trận</h3><div id="logBody"></div></div>
+    <details class="panel rules"><summary>Tóm tắt luật đang chạy</summary>
+      <ul>
+        <li>Mỗi ô tối đa 3 quân. Cột đối diện nhau theo chiều dọc màn hình.</li>
+        <li>Pha 1 Mưa tên: cung thủ hậu quân trúng 5+ (phòng thủ trên Đồi: 4+). Gỡ tiền quân cột đối diện trước.</li>
+        <li>Pha 2 Xung phong: kỵ binh tiền quân trúng 3+ nếu cột đối diện không có bộ binh tiền quân, ngược lại 5+. Rừng: không xung phong.</li>
+        <li>Pha 3 Giáp lá cà: bộ binh và tướng tiền quân trúng 4+, cung thủ tiền quân trúng 6. Sông: bên tấn công bỏ pha 2–4 ở vòng 1.</li>
+        <li>Pha 4 Đánh sườn: cột đối diện trống thì cả cột đánh sang cột kề, trúng 3+.</li>
+        <li>Pha 5 Tinh thần: bên mất nhiều quân hơn đổ 1 xúc xắc (+1 có tướng, +1 giữ thành). Kết quả ≤ số quân mất → tan rã, bị kỵ binh truy kích.</li>
+        <li>Tướng: đổ lại 1 xúc xắc mỗi vòng, chỉ bị gỡ khi là quân cuối trong ô. Thành: đỡ 2 hit đầu mỗi vòng.</li>
+        <li>Tối đa 4 vòng. Không ai tan rã thì bên tấn công rút lui.</li>
+      </ul>
+    </details>
+  </aside>
+</div>
+
+<script>
+(function(){
+const UNIT={I:{g:'■',n:'Bộ binh'},A:{g:'▲',n:'Cung thủ'},C:{g:'●',n:'Kỵ binh'},G:{g:'★',n:'Tướng'}};
+const ARMIES={std:{I:6,A:4,C:3,G:1},inf:{I:9,A:3,C:1,G:1},cav:{I:4,A:3,C:5,G:1},arc:{I:5,A:6,C:2,G:1}};
+const TERRAIN={
+  plain:{n:'Đồng bằng',d:'Không có hiệu ứng đặc biệt.'},
+  forest:{n:'Rừng',d:'Kỵ binh không được xung phong (đánh như bộ binh, trúng 5+).'},
+  hill:{n:'Đồi',d:'Cung thủ bên phòng thủ trúng 4+ thay vì 5+.'},
+  river:{n:'Sông',d:'Vòng 1, bên tấn công không đánh giáp lá cà, không xung phong, không đánh sườn.'},
+  city:{n:'Thành',d:'Bên phòng thủ bỏ qua 2 hit đầu mỗi vòng và được +1 khi kiểm tra tinh thần.'}};
+const CARDS={
+  muatien:{n:'Mưa tên dày đặc',d:'Cung thủ hậu quân của bạn trúng 4+ vòng này.'},
+  thietky:{n:'Thiết kỵ xung phong',d:'Kỵ binh xung phong trúng 4+ dù có bộ binh đối diện.'},
+  cuma:{n:'Trận địa cự mã',d:'Kỵ binh đối phương không được xung phong vòng này.'},
+  khichle:{n:'Khích lệ',d:'Bỏ qua kiểm tra tinh thần vòng này.'},
+  hoacong:{n:'Hỏa công',d:'Gỡ 1 quân đối phương trước pha mưa tên.'}};
+const PHASES=['Chiến thuật','Mưa tên','Xung phong','Giáp lá cà','Đánh sườn','Tinh thần'];
+const LANE_P=['Trái','Giữa','Phải'], LANE_E=['Phải','Giữa','Trái'];
+const other=s=>s==='P'?'E':'P';
+const d6=()=>1+Math.floor(Math.random()*6);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+let S;
+function freshState(){
+  return {mode:'setup',role:'att',terrain:'plain',armyKey:'std',round:1,phase:0,
+    boards:{P:emptyBoard(),E:emptyBoard()},reserve:{P:{},E:{}},
+    hand:{P:[],E:[]},played:{P:null,E:null},lost:{P:0,E:0},shield:{P:0,E:0},reroll:{P:false,E:false},
+    sel:'I',log:[],result:null};
+}
+function emptyBoard(){return [[[],[]],[[],[]],[[],[]]];}
+const att=()=>S.role==='att'?'P':'E';
+const def=()=>other(att());
+function count(side){let n=0;S.boards[side].forEach(l=>l.forEach(c=>n+=c.length));return n;}
+function reserveCount(side){return Object.values(S.reserve[side]).reduce((a,b)=>a+b,0);}
+function hasGeneral(side){return S.boards[side].some(l=>l.some(c=>c.includes('G')));}
+function laneEmpty(side,l){return S.boards[side][l][0].length===0&&S.boards[side][l][1].length===0;}
+
+/* ---------- log ---------- */
+function log(t,cls){S.log.push({t,cls});}
+function logRound(){log('Vòng trận '+S.round,'r');}
+function logH(t){log(t,'h');}
+
+/* ---------- setup / deploy ---------- */
+function startDeploy(){
+  S.mode='deploy';
+  S.reserve.P={...ARMIES[S.armyKey]}; S.reserve.E={...ARMIES[S.armyKey]};
+  S.boards.P=emptyBoard(); S.boards.E=emptyBoard();
+  const pool=Object.keys(CARDS);
+  S.hand.P=[pick(pool),pick(pool),pick(pool)]; S.hand.E=[pick(pool),pick(pool),pick(pool)];
+  S.log=[]; S.result=null; S.round=1; S.phase=0;
+  log('Địa hình: '+TERRAIN[S.terrain].n+'. '+TERRAIN[S.terrain].d,'l');
+  log('Dàn quân: chọn loại quân rồi bấm vào ô. Máy đang dàn quân sau tấm chắn.','l');
+  aiDeploy('E');
+}
+function place(side,l,r,u){
+  if(S.boards[side][l][r].length>=3||!S.reserve[side][u])return false;
+  S.boards[side][l][r].push(u); S.reserve[side][u]--; return true;
+}
+function unplace(side,l,r,i){
+  const u=S.boards[side][l][r].splice(i,1)[0]; S.reserve[side][u]=(S.reserve[side][u]||0)+1;
+}
+function clearBoard(side){
+  S.boards[side].forEach((lane,l)=>lane.forEach((c,r)=>{while(c.length)unplace(side,l,r,0);}));
+}
+function aiDeploy(side){
+  clearBoard(side);
+  const R=S.reserve[side];
+  const plan=Math.random()<0.5?'hammer':'balanced';
+  const hammer=pick([0,2]);
+  const order=plan==='hammer'?[hammer,1,2-hammer]:[1,0,2];
+  // cavalry
+  let c=R.C;
+  if(plan==='hammer'){while(c>0&&place(side,hammer,0,'C'))c--;}
+  else{for(const l of [0,2,1]){if(c>0&&place(side,l,0,'C'))c--;}}
+  while(c>0){let ok=false;for(const l of order){if(c>0&&place(side,l,0,'C')){c--;ok=true;}}if(!ok)break;}
+  // infantry front, fill lanes without cav first
+  let i=R.I;
+  const frontOrder=plan==='hammer'?[1,2-hammer,hammer]:[1,0,2];
+  let guard=0;
+  while(i>0&&guard<40){let ok=false;for(const l of frontOrder){if(i>0&&place(side,l,0,'I')){i--;ok=true;}}if(!ok)break;guard++;}
+  // archers rear
+  let a=R.A; guard=0;
+  const rearOrder=plan==='hammer'?[1,hammer,2-hammer]:[1,0,2];
+  while(a>0&&guard<40){let ok=false;for(const l of rearOrder){if(a>0&&place(side,l,1,'A')){a--;ok=true;}}if(!ok)break;guard++;}
+  // general rear middle
+  if(R.G>0){if(!place(side,1,1,'G')){for(const l of [hammer,2-hammer]){if(place(side,l,1,'G'))break;}}}
+  // leftover infantry to rear
+  for(const l of [0,1,2])while(R.I>0&&place(side,l,1,'I'));
+  for(const l of [0,1,2])while(R.I>0&&place(side,l,0,'I'));
+}
+function canStart(){return count('P')>0;}
+
+/* ---------- battle ---------- */
+function startBattle(){
+  if(!canStart())return;
+  S.mode='battle'; S.round=1; S.phase=0;
+  S.played={P:null,E:null}; S.lost={P:0,E:0}; S.reroll={P:false,E:false};
+  S.shield={P:0,E:0}; if(S.terrain==='city')S.shield[def()]=2;
+  log('Hạ tấm chắn. Hai bên lộ trận hình.','l big');
+  logRound();
+  logH('Pha 0 · Chiến thuật');
+}
+function aiPickCard(){
+  const side='E',me=S.boards.E,en=S.boards.P;
+  const hand=S.hand.E; if(!hand.length)return null;
+  const enCavFront=en.reduce((n,l)=>n+l[0].filter(u=>u==='C').length,0);
+  const myOpenLanes=me.filter(l=>!l[0].includes('I')).length;
+  const myArchRear=me.reduce((n,l)=>n+l[1].filter(u=>u==='A').length,0);
+  const myCavFront=me.reduce((n,l)=>n+l[0].filter(u=>u==='C').length,0);
+  const idx=k=>hand.indexOf(k);
+  if(idx('cuma')>=0&&enCavFront>=2&&myOpenLanes>0)return 'cuma';
+  if(idx('hoacong')>=0&&S.round===1)return 'hoacong';
+  if(idx('muatien')>=0&&myArchRear>=3)return 'muatien';
+  if(idx('thietky')>=0&&myCavFront>=2&&S.terrain!=='forest')return 'thietky';
+  if(idx('khichle')>=0&&count('E')<count('P'))return 'khichle';
+  return Math.random()<0.4?pick(hand):null;
+}
+function playCard(side,key){
+  if(!key){S.played[side]=null;return;}
+  const i=S.hand[side].indexOf(key); if(i<0)return;
+  S.hand[side].splice(i,1); S.played[side]=key;
+  log((side==='P'?'Bạn':'Máy')+' dùng thẻ '+CARDS[key].n+'.', 'l '+side.toLowerCase());
+  if(key==='hoacong'){
+    const t=pickTarget(other(side),null,true);
+    if(t){removeUnit(other(side),t.l,t.r,'Hỏa công thiêu');}
+  }
+}
+function phaseCards(playerCard){
+  playCard('P',playerCard);
+  const ai=aiPickCard(); playCard('E',ai);
+  if(!S.played.P&&!S.played.E)log('Không bên nào dùng thẻ.','l');
+  checkInstantEnd();
+}
+function roll(side,n,need,label){
+  // returns number of hits, logs dice; general reroll of first miss once per round
+  const dice=[];for(let k=0;k<n;k++)dice.push(d6());
+  let hits=dice.filter(x=>x>=need).length;
+  let note='';
+  if(hasGeneral(side)&&!S.reroll[side]){
+    const mi=dice.findIndex(x=>x<need);
+    if(mi>=0){const nv=d6();S.reroll[side]=true;note=' · tướng đổ lại '+dice[mi]+'→'+nv;if(nv>=need)hits++;}
+  }
+  if(n>0)log(`${side==='P'?'Xanh':'Đỏ'} ${label}: <span class="dice">[${dice.join(' ')}]</span> cần ${need}+ → ${hits} trúng${note}`,'l '+side.toLowerCase());
+  return hits;
+}
+function pickTarget(side,lane,any){
+  // target on 'side' board: front of lane, else rear of lane, else any; prefers cells with most units when 'any'
+  const B=S.boards[side];
+  if(lane!==null&&lane!==undefined){
+    if(B[lane][0].length)return {l:lane,r:0};
+    if(B[lane][1].length)return {l:lane,r:1};
+  }
+  if(any===false)return null;
+  let best=null;
+  B.forEach((L,l)=>L.forEach((c,r)=>{if(c.length&&(!best||(r===0&&best.r===1)||(r===best.r&&c.length>B[best.l][best.r].length)))best={l,r};}));
+  return best;
+}
+function removeUnit(side,l,r,why){
+  const cell=S.boards[side][l][r]; if(!cell.length)return false;
+  if(S.shield[side]>0){S.shield[side]--;log('Tường thành đỡ một hit cho '+(side==='P'?'xanh':'đỏ')+'.','l');return false;}
+  let i=-1; for(const pref of ['I','A','C']){i=cell.indexOf(pref); if(i>=0)break;} if(i<0)i=0;
+  const u=cell.splice(i,1)[0];
+  S.lost[side]++;
+  const who=side==='P'?'xanh':'đỏ';
+  log(`${why} ${UNIT[u].n} ${UNIT[u].g} ${who} ở cột ${(side==='P'?LANE_P:LANE_E)[l]}, ${r===0?'tiền quân':'hậu quân'}.`,'l '+side.toLowerCase());
+  if(u==='G'){log('Tướng '+who+' tử trận!','l big '+side.toLowerCase());S.pendingGen=S.pendingGen||[];S.pendingGen.push(side);}
+  return true;
+}
+function applyHits(side,hitsPerLane,adjacent){
+  // side = attacker; hits go to other side
+  const tgt=other(side);
+  Object.entries(hitsPerLane).forEach(([l,n])=>{
+    l=+l;
+    for(let k=0;k<n;k++){
+      let t=null;
+      if(adjacent){
+        const cands=[l-1,l+1].filter(x=>x>=0&&x<3&&!laneEmpty(tgt,x));
+        if(cands.length)t=pickTarget(tgt,pick(cands),false);
+      } else t=pickTarget(tgt,l,true);
+      if(!t)break;
+      removeUnit(tgt,t.l,t.r,'Hạ');
+    }
+  });
+}
+function attackerBlocked(side){return S.terrain==='river'&&S.round===1&&side===att();}
+function phaseArchery(){
+  logH('Pha 1 · Mưa tên');
+  const hits={P:{},E:{}};
+  for(const side of ['P','E']){
+    let need=5; if(S.terrain==='hill'&&side===def())need=4; if(S.played[side]==='muatien')need=4;
+    S.boards[side].forEach((L,l)=>{const n=L[1].filter(u=>u==='A').length;if(n)hits[side][l]=roll(side,n,need,'cung thủ cột '+(side==='P'?LANE_P:LANE_E)[l]);});
+  }
+  applyHits('P',hits.P,false); applyHits('E',hits.E,false);
+}
+function phaseCharge(){
+  logH('Pha 2 · Xung phong');
+  const hits={P:{},E:{}};
+  for(const side of ['P','E']){
+    if(attackerBlocked(side)){log((side==='P'?'Xanh':'Đỏ')+' còn đang lội sông, không xung phong.','l');continue;}
+    if(S.terrain==='forest'){log('Rừng rậm, kỵ binh '+(side==='P'?'xanh':'đỏ')+' không xung phong được.','l');continue;}
+    if(S.played[other(side)]==='cuma'){log('Trận địa cự mã chặn kỵ binh '+(side==='P'?'xanh':'đỏ')+'.','l');continue;}
+    S.boards[side].forEach((L,l)=>{
+      const n=L[0].filter(u=>u==='C').length; if(!n)return;
+      const infFront=S.boards[other(side)][l][0].includes('I');
+      let need=infFront?5:3; if(S.played[side]==='thietky'&&need===5)need=4;
+      hits[side][l]=roll(side,n,need,'kỵ binh xung phong cột '+(side==='P'?LANE_P:LANE_E)[l]+(infFront?' (gặp bộ binh)':' (cột hở)'));
+    });
+  }
+  applyHits('P',hits.P,false); applyHits('E',hits.E,false);
+}
+function phaseMelee(){
+  logH('Pha 3 · Giáp lá cà');
+  const hits={P:{},E:{}};
+  for(const side of ['P','E']){
+    if(attackerBlocked(side)){log((side==='P'?'Xanh':'Đỏ')+' chưa qua sông, không giáp lá cà.','l');continue;}
+    S.boards[side].forEach((L,l)=>{
+      const f=L[0]; if(!f.length)return;
+      const ln=(side==='P'?LANE_P:LANE_E)[l]; let h=0;
+      const nIG=f.filter(u=>u==='I'||u==='G').length; if(nIG)h+=roll(side,nIG,4,'bộ binh cột '+ln);
+      const nA=f.filter(u=>u==='A').length; if(nA)h+=roll(side,nA,6,'cung thủ cận chiến cột '+ln);
+      const nC=f.filter(u=>u==='C').length; if(nC&&S.terrain==='forest')h+=roll(side,nC,5,'kỵ binh đánh bộ cột '+ln);
+      if(h)hits[side][l]=h;
+    });
+  }
+  applyHits('P',hits.P,false); applyHits('E',hits.E,false);
+}
+function phaseFlank(){
+  logH('Pha 4 · Đánh sườn');
+  const hits={P:{},E:{}}; let any=false;
+  for(const side of ['P','E']){
+    if(attackerBlocked(side))continue;
+    S.boards[side].forEach((L,l)=>{
+      const n=L[0].length+L[1].length; if(!n||!laneEmpty(other(side),l))return;
+      const adj=[l-1,l+1].filter(x=>x>=0&&x<3&&!laneEmpty(other(side),x)); if(!adj.length)return;
+      any=true; hits[side][l]=roll(side,n,3,'tràn sườn từ cột '+(side==='P'?LANE_P:LANE_E)[l]);
+    });
+  }
+  if(!any)log('Chưa cánh nào bị sập, không có đánh sườn.','l');
+  applyHits('P',hits.P,true); applyHits('E',hits.E,true);
+}
+function moraleTest(side,lost,mod,why){
+  if(S.played[side]==='khichle'){log('Thẻ Khích lệ: '+(side==='P'?'xanh':'đỏ')+' không phải kiểm tra tinh thần.','l '+side.toLowerCase());return false;}
+  const r=d6(); let bonus=0, parts=[];
+  if(hasGeneral(side)){bonus++;parts.push('+1 tướng');}
+  if(S.terrain==='city'&&side===def()){bonus++;parts.push('+1 thành');}
+  if(mod){bonus+=mod;parts.push((mod>0?'+':'')+mod+' '+why);}
+  const total=r+bonus;
+  const rout=total<=lost;
+  log(`${side==='P'?'Xanh':'Đỏ'} kiểm tra tinh thần: <span class="dice">[${r}]</span> ${parts.join(' ')} = ${total}, mất ${lost} quân → ${rout?'<b>TAN RÃ</b>':'giữ vững'}`,'l big '+side.toLowerCase());
+  return rout;
+}
+function phaseMorale(){
+  logH('Pha 5 · Tinh thần');
+  const lp=S.lost.P, le=S.lost.E;
+  log(`Vòng này xanh mất ${lp}, đỏ mất ${le}.`,'l');
+  if(count('P')===0||count('E')===0)return;
+  if(lp===le){log('Tổn thất ngang nhau, không ai phải kiểm tra.','l');return;}
+  const side=lp>le?'P':'E';
+  if(moraleTest(side,Math.max(lp,le),0))finishRout(side);
+}
+function checkInstantEnd(){
+  // general deaths → immediate morale with -1
+  if(S.pendingGen){const list=S.pendingGen;S.pendingGen=null;
+    for(const side of list){if(S.mode!=='battle')break;if(count(side)>0&&moraleTest(side,S.lost[side],-1,'mất tướng')){finishRout(side);return true;}}}
+  if(S.mode!=='battle')return true;
+  for(const side of ['P','E']){if(count(side)===0&&reserveCount(side)===0){finish(other(side),(side==='P'?'Quân xanh':'Quân đỏ')+' bị tiêu diệt hoàn toàn.');return true;}}
+  return false;
+}
+function finishRout(loser){
+  const winner=other(loser);
+  let cav=0;S.boards[winner].forEach(l=>cav+=l[0].concat(l[1]).filter(u=>u==='C').length);
+  const pursuit=Math.min(3,cav,count(loser));
+  if(pursuit){S.shield[loser]=0;for(let k=0;k<pursuit;k++){const t=pickTarget(loser,null,true);if(t)removeUnit(loser,t.l,t.r,'Truy kích hạ');}}
+  finish(winner,(loser==='P'?'Quân xanh':'Quân đỏ')+' tan rã'+(pursuit?', bị kỵ binh truy kích thêm '+pursuit+' quân.':'.'));
+}
+function finish(winner,why){
+  S.mode='end';
+  const youWin=winner==='P';
+  S.result={winner,title:winner?(youWin?'Bạn thắng trận':'Máy thắng trận'):'Hòa',why,
+    detail:`Còn lại: xanh ${count('P')} quân, đỏ ${count('E')} quân. ${winner===att()?'Bên tấn công chiếm tỉnh.':'Bên phòng thủ giữ tỉnh.'}`};
+  log(S.result.title+'. '+why,'l big');
+}
+function endRound(){
+  // refill from reserve
+  for(const side of ['P','E']){
+    S.boards[side].forEach((L,l)=>L.forEach((c,r)=>{
+      if(c.length===0){for(const u of ['I','C','A','G']){if(S.reserve[side][u]>0){place(side,l,r,u);log('Hậu bị '+(side==='P'?'xanh':'đỏ')+' bổ sung '+UNIT[u].n+' vào ô trống.','l '+side.toLowerCase());break;}}}
+    }));
+  }
+  if(S.round>=4){finish(def(),'Hết 4 vòng mà không bên nào tan rã. Bên tấn công rút lui.');return;}
+  S.round++; S.phase=0; S.played={P:null,E:null}; S.lost={P:0,E:0}; S.reroll={P:false,E:false};
+  if(S.terrain==='city')S.shield[def()]=2;
+  logRound(); logH('Pha 0 · Chiến thuật');
+}
+function nextPhase(cardKey){
+  if(S.mode!=='battle')return;
+  const ph=S.phase;
+  if(ph===0)phaseCards(cardKey);
+  else if(ph===1)phaseArchery();
+  else if(ph===2)phaseCharge();
+  else if(ph===3)phaseMelee();
+  else if(ph===4)phaseFlank();
+  else if(ph===5)phaseMorale();
+  if(S.mode==='battle'&&checkInstantEnd())return render();
+  if(S.mode!=='battle')return render();
+  S.phase++;
+  if(S.phase>5)endRound();
+  render();
+}
+function runRound(cardKey){
+  const r=S.round;
+  if(S.phase===0)nextPhase(cardKey);
+  let guard=0;
+  while(S.mode==='battle'&&S.round===r&&guard++<10)nextPhase(null);
+}
+
+/* ---------- render ---------- */
+const $=id=>document.getElementById(id);
+function tok(side,u){return `<span class="tok ${side.toLowerCase()} ${u}" title="${UNIT[u].n}">${UNIT[u].g}</span>`;}
+function renderBoard(side){
+  const el=$('board'+side), B=S.boards[side], names=side==='P'?LANE_P:LANE_E;
+  const rows=side==='E'?[1,0]:[0,1];
+  let h=`<div></div>${names.map(n=>`<div class="lanehead">${n}</div>`).join('')}`;
+  for(const r of rows){
+    h+=`<div class="rowname">${r===0?'Tiền quân':'Hậu quân'}</div>`;
+    for(let l=0;l<3;l++){
+      const c=B[l][r];
+      const can=side==='P'&&S.mode==='deploy'&&c.length<3&&S.reserve.P[S.sel]>0;
+      const flank=S.mode==='battle'&&laneEmpty(side,l)&&!laneEmpty(other(side),l);
+      h+=`<div class="cell ${can?'can':''} ${flank&&r===0?'flank':''}" data-side="${side}" data-l="${l}" data-r="${r}">`;
+      if(side==='E'&&S.mode==='deploy'){h+=c.map(()=>`<span class="tok e" style="opacity:.25">?</span>`).join('');}
+      else h+=c.map((u,i)=>`<span class="tok ${side.toLowerCase()} ${u}" data-i="${i}" title="${UNIT[u].n}">${UNIT[u].g}</span>`).join('');
+      h+=`</div>`;
+    }
+  }
+  el.innerHTML=h;
+}
+function renderReserve(){
+  const el=$('reserve');
+  if(S.mode==='setup'){el.innerHTML='';return;}
+  if(S.mode!=='deploy'){
+    const rp=reserveCount('P'),re=reserveCount('E');
+    el.innerHTML=`<span class="sub">Hậu bị: xanh ${rp} · đỏ ${re}</span>`;return;
+  }
+  el.innerHTML=`<span class="sub">Kho của bạn:</span>`+Object.keys(UNIT).map(u=>`<button class="rbtn ${S.sel===u?'sel':''}" data-u="${u}" ${S.reserve.P[u]?'':'disabled'}>${tok('P',u)} ${UNIT[u].n} <small>×${S.reserve.P[u]||0}</small></button>`).join('');
+}
+function renderActions(){
+  const el=$('actions');
+  if(S.mode==='setup')el.innerHTML=`<button class="btn primary" id="btnDeploy">Bắt đầu dàn quân</button>`;
+  else if(S.mode==='deploy')el.innerHTML=`<button class="btn" id="btnAuto">Dàn tự động</button><button class="btn ghost" id="btnClear">Dọn bàn</button><button class="btn primary" id="btnFight" ${canStart()?'':'disabled'}>Hạ tấm chắn, vào trận</button>`;
+  else if(S.mode==='battle'){
+    if(S.phase===0)el.innerHTML=`<span class="sub">Chọn thẻ ở cột bên, hoặc</span><button class="btn primary" id="btnNoCard">Không dùng thẻ, vào pha 1</button><button class="btn" id="btnRunNoCard">Chạy cả vòng không thẻ</button>`;
+    else el.innerHTML=`<button class="btn primary" id="btnNext">Pha tiếp: ${PHASES[S.phase]}</button><button class="btn" id="btnRun">Chạy hết vòng ${S.round}</button>`;
+  }
+  else el.innerHTML=`<button class="btn primary" id="btnAgain">Dàn lại với cùng thiết lập</button><button class="btn" id="btnReset2">Thiết lập khác</button>`;
+}
+function renderStatus(){
+  const el=$('status');
+  const ph=PHASES.map((p,i)=>`<span class="ph ${S.mode==='battle'&&i===S.phase?'on':''} ${S.mode==='battle'&&i<S.phase?'done':''}">${i}. ${p}</span>`).join('');
+  el.innerHTML=`<div class="stat p"><div class="k">Quân xanh trên bàn</div><div class="v">${count('P')}</div></div>
+    <div class="stat e"><div class="k">Quân đỏ trên bàn</div><div class="v">${count('E')}</div></div>
+    <div class="stat"><div class="k">Vòng trận</div><div class="v">${S.mode==='battle'||S.mode==='end'?S.round+' / 4':'—'}</div></div>
+    <div class="stat"><div class="k">Địa hình</div><div class="v" style="font-size:16px">${TERRAIN[S.terrain].n}</div></div>
+    <div class="phasebar">${ph}</div>`;
+}
+function renderHand(){
+  const el=$('hand');
+  if(S.mode==='setup'){el.innerHTML='<h3>Thẻ chiến thuật</h3><p class="sub" style="margin:0">Mỗi bên rút 3 thẻ khi dàn quân. Mỗi vòng trận dùng tối đa 1 thẻ.</p>';return;}
+  const pickable=S.mode==='battle'&&S.phase===0;
+  const cards=S.hand.P.map((k,i)=>`<button class="card ${pickable?'pick':'na'}" data-card="${k}" ${pickable?'':'disabled'}><div><b>${CARDS[k].n}</b><span>${CARDS[k].d}</span></div>${pickable?'<span>Dùng</span>':''}</button>`).join('');
+  el.innerHTML=`<h3>Thẻ trên tay bạn (${S.hand.P.length})</h3><div class="cards">${cards||'<span class="sub">Đã dùng hết thẻ.</span>'}</div>
+    <p class="sub" style="margin:8px 0 0">Máy còn ${S.hand.E.length} thẻ.</p>`;
+}
+function renderLog(){
+  const el=$('logBody');
+  let h=S.log.map(x=>`<div class="${x.cls}">${x.t}</div>`).join('');
+  if(S.result)h+=`<div class="result" style="margin-top:10px"><b>${S.result.title}</b>${S.result.why}<br><span class="sub">${S.result.detail}</span></div>`;
+  el.innerHTML=h||'<span class="sub">Chưa có gì. Chọn thiết lập và bắt đầu.</span>';
+  $('log').scrollTop=$('log').scrollHeight;
+}
+function render(){
+  $('setup').hidden=S.mode!=='setup';
+  $('terrainNote').textContent=TERRAIN[S.terrain].n+': '+TERRAIN[S.terrain].d;
+  $('pRole').textContent=S.role==='att'?'tấn công':'phòng thủ';
+  $('eRole').textContent=S.role==='att'?'phòng thủ':'tấn công';
+  renderBoard('E');renderBoard('P');renderReserve();renderActions();renderStatus();renderHand();renderLog();
+  try{window.claude&&window.claude.hot&&window.claude.hot.snapshot&&window.claude.hot.snapshot(()=>({S}));}catch(e){}
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button,[data-side]');
+  if(!b)return;
+  const id=b.id;
+  if(id==='btnReset'||id==='btnReset2'){S=freshState();syncSetup();render();return;}
+  if(id==='btnDeploy'){startDeploy();render();return;}
+  if(id==='btnAuto'){aiDeploy('P');render();return;}
+  if(id==='btnClear'){clearBoard('P');render();return;}
+  if(id==='btnFight'){startBattle();render();return;}
+  if(id==='btnNoCard'){nextPhase(null);return;}
+  if(id==='btnRunNoCard'){runRound(null);render();return;}
+  if(id==='btnNext'){nextPhase(null);return;}
+  if(id==='btnRun'){runRound(null);render();return;}
+  if(id==='btnAgain'){const keep={role:S.role,terrain:S.terrain,armyKey:S.armyKey};S=freshState();Object.assign(S,keep);startDeploy();render();return;}
+  if(b.dataset.u){S.sel=b.dataset.u;render();return;}
+  if(b.dataset.card&&S.mode==='battle'&&S.phase===0){nextPhase(b.dataset.card);return;}
+  if(b.dataset.side==='P'&&S.mode==='deploy'){
+    const l=+b.dataset.l,r=+b.dataset.r;
+    const t=e.target.closest('.tok');
+    if(t&&t.dataset.i!==undefined){unplace('P',l,r,+t.dataset.i);render();return;}
+    if(place('P',l,r,S.sel)){ if(!S.reserve.P[S.sel]){const n=Object.keys(UNIT).find(u=>S.reserve.P[u]>0);if(n)S.sel=n;} render(); }
+  }
+});
+function syncSetup(){$('selRole').value=S.role;$('selTerrain').value=S.terrain;$('selArmy').value=S.armyKey;}
+$('selRole').addEventListener('change',e=>{S.role=e.target.value;render();});
+$('selTerrain').addEventListener('change',e=>{S.terrain=e.target.value;render();});
+$('selArmy').addEventListener('change',e=>{S.armyKey=e.target.value;render();});
+
+function start(data){
+  S=(data&&data.S)?data.S:freshState();
+  syncSetup();render();
+}
+(window.claude&&window.claude.hot&&window.claude.hot.ready)?window.claude.hot.ready(start):start((window.claude&&window.claude.hot&&window.claude.hot.data)||{});
+})();
+</script>
+</body>
+</html>
